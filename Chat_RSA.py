@@ -1,9 +1,3 @@
-"""
-Chat Application dengan RSA Key Exchange + DES Encryption
-Kedua pihak tidak perlu mengetahui secret key sebelumnya
-Menggunakan RSA untuk mengirim DES key secara aman
-"""
-
 import socket
 import sys
 import os
@@ -28,14 +22,6 @@ PORT = int(os.getenv("PORT", 8080))
 
 
 def sender_mode_with_rsa():
-    """
-    Sender mode: 
-    1. Generate DES key
-    2. Dapatkan public key receiver (via RSA key exchange)
-    3. Enkripsi DES key dengan RSA public key receiver
-    4. Kirim encrypted DES key
-    5. Kirim pesan terenkripsi dengan DES
-    """
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(10)
@@ -48,7 +34,6 @@ def sender_mode_with_rsa():
             print("STEP 1: RSA KEY EXCHANGE")
             print("=" * 70)
             
-            # Terima public key dari receiver
             print("\n[SENDER] Waiting for receiver's RSA public key...")
             receiver_public_data = s.recv(8192)
             receiver_public_key = pickle.loads(receiver_public_data)
@@ -57,29 +42,23 @@ def sender_mode_with_rsa():
             print(f"  e = {receiver_public_key[0]}")
             print(f"  n = {receiver_public_key[1]}")
             
-            # Generate DES key (8 karakter)
             import random
             import string
             des_key = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
             print(f"\n[SENDER] Generated DES key: '{des_key}'")
             
-            # Enkripsi DES key dengan RSA public key receiver
             print("[SENDER] Encrypting DES key with receiver's RSA public key...")
             
-            # Convert DES key ke integer
             des_key_int = int.from_bytes(des_key.encode(), 'big')
             
-            # Enkripsi: C = M^e mod n
             e, n = receiver_public_key
             encrypted_key = pow(des_key_int, e, n)
             
             print(f"[SENDER] Encrypted DES key: {encrypted_key}")
             
-            # Kirim encrypted DES key
             print("[SENDER] Sending encrypted DES key to receiver...")
             s.sendall(pickle.dumps(encrypted_key))
             
-            # Tunggu konfirmasi
             confirmation = s.recv(1024).decode('utf-8')
             if confirmation == "KEY_RECEIVED":
                 print("[SENDER] Receiver confirmed key receipt.")
@@ -88,17 +67,14 @@ def sender_mode_with_rsa():
             print("STEP 2: SEND ENCRYPTED MESSAGE")
             print("=" * 70)
             
-            # Input pesan
             plaintext = input("\n[SENDER] Enter your message: ")
             
-            # Enkripsi dengan DES
             print("[SENDER] Encrypting message with DES...")
             encrypted_bits = des_encrypt(plaintext, des_key)
             encrypted_hex = bits_to_hex(encrypted_bits)
             
             print(f"[SENDER] Encrypted message (hex): {encrypted_hex}")
             
-            # Kirim encrypted message
             print("[SENDER] Sending encrypted message...")
             s.sendall(encrypted_hex.encode('utf-8'))
             
@@ -118,14 +94,6 @@ def sender_mode_with_rsa():
 
 
 def receiver_mode_with_rsa():
-    """
-    Receiver mode:
-    1. Generate RSA key pair
-    2. Kirim public key ke sender
-    3. Terima encrypted DES key
-    4. Dekripsi DES key dengan RSA private key
-    5. Terima dan dekripsi pesan dengan DES
-    """
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -144,9 +112,8 @@ def receiver_mode_with_rsa():
                 print("STEP 1: RSA KEY EXCHANGE")
                 print("=" * 70)
                 
-                # Generate RSA key pair
                 print("\n[RECEIVER] Generating RSA key pair...")
-                rsa = RSA(key_size=512)  # Ukuran kecil untuk kecepatan
+                rsa = RSA(key_size=512)
                 public_key = rsa.get_public_key()
                 
                 print(f"[RECEIVER] Generated RSA key pair:")
@@ -154,36 +121,30 @@ def receiver_mode_with_rsa():
                 print(f"  Public key (n): {public_key[1]}")
                 print(f"  Private key: RAHASIA")
                 
-                # Kirim public key ke sender
                 print("\n[RECEIVER] Sending RSA public key to sender...")
                 conn.sendall(pickle.dumps(public_key))
                 
-                # Terima encrypted DES key
                 print("[RECEIVER] Waiting for encrypted DES key...")
                 encrypted_key_data = conn.recv(8192)
                 encrypted_key = pickle.loads(encrypted_key_data)
                 
                 print(f"[RECEIVER] Received encrypted DES key: {encrypted_key}")
                 
-                # Dekripsi DES key dengan RSA private key
                 print("[RECEIVER] Decrypting DES key with RSA private key...")
                 des_key_int = rsa.decrypt(encrypted_key)
                 
-                # Convert integer ke string
                 byte_length = (des_key_int.bit_length() + 7) // 8
                 des_key_bytes = des_key_int.to_bytes(byte_length, 'big')
                 des_key = des_key_bytes.decode('utf-8')
                 
                 print(f"[RECEIVER] Decrypted DES key: '{des_key}'")
                 
-                # Kirim konfirmasi
                 conn.sendall("KEY_RECEIVED".encode('utf-8'))
                 
                 print("\n" + "=" * 70)
                 print("STEP 2: RECEIVE ENCRYPTED MESSAGE")
                 print("=" * 70)
                 
-                # Terima encrypted message
                 print("\n[RECEIVER] Waiting for encrypted message...")
                 data = conn.recv(8192)
                 
@@ -192,7 +153,6 @@ def receiver_mode_with_rsa():
                     print(f"[RECEIVER] Received encrypted message (hex): {encrypted_hex}")
                     
                     try:
-                        # Dekripsi dengan DES
                         print("[RECEIVER] Decrypting message with DES...")
                         encrypted_bits = hex_to_bits(encrypted_hex)
                         decrypted_text = des_decrypt(encrypted_bits, des_key)
@@ -208,7 +168,7 @@ def receiver_mode_with_rsa():
                 print("=" * 70)
     
     except OSError as e:
-        if e.errno == 98 or e.errno == 10048:  # Address already in use
+        if e.errno == 98 or e.errno == 10048:
             print(f"\n✗ Error: Address {LHOST}:{PORT} is already in use.")
         else:
             print(f"\n✗ An error occurred: {e}")
