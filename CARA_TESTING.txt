@@ -1,0 +1,23 @@
+================================================================
+CARA TESTING - 2 TERMINAL LOKAL (RSA KEY EXCHANGE)
+================================================================
+
+TERMINAL 1 (Receiver):
+cd "c:/Semester5/Keamanan_Informasi/Keamanan-Informasi-B_DES-Algorithm"
+python Chat_RSA.py
+> Pilih: 2
+> Tunggu...
+
+TERMINAL 2 (Sender):
+cd "c:/Semester5/Keamanan_Informasi/Keamanan-Informasi-B_DES-Algorithm"
+python Chat_RSA.py
+> Pilih: 1
+> Ketik pesan Anda
+> Enter
+
+================================================================
+
+CATATAN:
+- Jalankan RECEIVER dulu (Terminal 1)
+- Baru jalankan SENDER (Terminal 2)
+- Port default: 8080 (ubah di .env jika perlu)
